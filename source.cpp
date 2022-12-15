@@ -57,7 +57,7 @@ void Matrix<T>::createRamMatrix(Matrix *matrix, const size_t databound)
         for (size_t j = 0; j < (unsigned long long)matrix->row * matrix->column; j++)
         {
             T ram = (T)rand() / RAND_MAX * databound;
-            cout << j << " : " << ram << " ";
+            // cout << j << " : " << ram << " ";
 
             matrix->data[j] = ram;
         }
@@ -112,7 +112,7 @@ Matrix<T> Matrix<T>::operator+(const Matrix &mat)
         {
             for (size_t j = 0; j < this->column; ++j)
             {
-                ans.data[i * this->row + j] = this->data[i * this->row + j] + mat.data[i * this->row + j];
+                ans.data[i * this->column + j] = this->data[i * this->column + j] + mat.data[i * this->column + j];
             }
         }
     }
@@ -143,7 +143,7 @@ Matrix<T> Matrix<T>::operator+(const T addx)
         {
             for (size_t j = 0; j < this->column; ++j)
             {
-                ans.data[i * this->row + j] = this->data[i * this->row + j] + addx;
+                ans.data[i * this->column + j] = this->data[i * this->column + j] + addx;
             }
         }
     }
@@ -174,7 +174,7 @@ Matrix<T> Matrix<T>::operator-(const Matrix &mat)
         {
             for (size_t j = 0; j < this->column; ++j)
             {
-                ans.data[i * this->row + j] = this->data[i * this->row + j] - mat.data[i * this->row + j];
+                ans.data[i * this->column + j] = this->data[i * this->column + j] - mat.data[i * this->column + j];
             }
         }
     }
@@ -356,7 +356,7 @@ Matrix<T> Matrix<T>::operator=(const Matrix &mat) // soft copy
         }
         else if (this->row != mat.row || this->column != mat.column)
         {
-            throw "The matrixs ans the output doesn't match! \n";
+            throw "The matrixs and the output doesn't match! \n";
             //        return NULL;
         }
         else
@@ -400,7 +400,7 @@ bool Matrix<T>::operator==(const Matrix &mat)
         {
             for (size_t j = 0; j < this->column; ++j)
             {
-                if (this->data[i * this->row + j] != mat.data[i * this->row + j])
+                if (this->data[i * this->column + j] != mat.data[i * this->column + j])
                 {
                     return false;
                 }
@@ -416,15 +416,15 @@ int main()
     try
     {
         Matrix<float> m1(2, 3, 1);
-        Matrix<float> m2(3, 2, 1);
-        Matrix<float> m3(2, 2, 1);
+        Matrix<float> m2(2, 3, 1);
+        Matrix<float> m3(2, 3, 1);
         // std::shared_ptr<float> p1;
         m1.createRamMatrix(&m1, 5);
         sleep(1);
         m2.createRamMatrix(&m2, 5);
         cout << m1;
         cout << m2;
-        m3 = m1 * m2;
+        m3 = m1 + m2;
         cout << m3;
         // m3 = m1;
         // cout << m3;

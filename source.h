@@ -53,6 +53,16 @@ public:
             throw msg;
         }
     }
+    ~Matrix()
+    {
+        *(this->ref_count)--;
+        if (*(this->ref_count) == 0 && this->data == nullptr)
+        {
+            delete this->ref_count;
+            delete[] this->data;
+            this->data = NULL;
+        }
+    }
     void addrefCount()
     {
         this->ref_count++;
@@ -65,12 +75,7 @@ public:
     {
         return this->ref_count;
     }
-    Matrix operator+(const Matrix &mat);
-    Matrix operator-(const Matrix &mat);
-    Matrix operator=(const Matrix &mat);
-    bool operator==(const Matrix &mat);
-    Matrix operator+(const T addx);
-    Matrix operator*(const Matrix &mat);
+
     friend std::ostream &operator<<(std::ostream &os, const Matrix &mat)
     {
         if (mat.data == NULL)
@@ -88,7 +93,7 @@ public:
                     // str = str + std::to_string(mat.data[i * mat.row + j]) + "  ";
                     cout << std::left << setw(10);
                     cout.fixed;
-                    cout << mat.data[i * mat.row + j] << "  ";
+                    cout << mat.data[i * mat.column + j] << "  ";
                 }
                 cout << endl;
                 // str = str + "\n";
@@ -98,9 +103,15 @@ public:
         }
         return os;
     }
+    Matrix operator+(const Matrix &mat);
+    Matrix operator-(const Matrix &mat);
+    Matrix operator=(const Matrix &mat);
+    bool operator==(const Matrix &mat);
+    Matrix operator+(const T addx);
+    Matrix operator*(const Matrix &mat);
 
     void initialMatrix(Matrix *matrix, const size_t row, const size_t col);
-    void createRamMatrix(Matrix *matrix, const size_t row, const size_t col, const size_t databound);
+    void createRamMatrix(Matrix *matrix, const size_t databound);
     // void showMatrix(const Matrix *matrix);
 };
 
