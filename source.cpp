@@ -41,28 +41,25 @@ void Matrix<T>::initialMatrix(Matrix<T> *matrix, const size_t row, const size_t 
 }
 
 template <typename T>
-void Matrix<T>::createRamMatrix(Matrix *matrix, const size_t databound)
+void Matrix<T>::createRamMatrix(const size_t databound)
 { // 检查合法性
     srand((unsigned)time(NULL));
-    if (matrix->row <= 0 || matrix->column <= 0)
+    if (this->row <= 0 || this->column <= 0)
     {
         throw "row or/and col is smaller than 0";
     }
     else
     {
-        if (matrix->data == NULL)
+        if (this->data == NULL)
         { // 申请空间失败
             throw "The memory is failed to allocated";
-            free(matrix);
         }
-        for (size_t j = 0; j < (unsigned long long)matrix->row * matrix->column; j++)
+        for (size_t j = 0; j < (unsigned long long)this->row * this->column; j++)
         {
             T ram = (T)rand() / RAND_MAX * databound;
-            // cout << j << " : " << ram << " ";
-
-            matrix->data[j] = ram;
+            this->data[j] = ram;
         }
-        cout << endl;
+        this->addrefCount();
     }
 }
 
@@ -92,7 +89,9 @@ void Matrix<T>::createRamMatrix(Matrix *matrix, const size_t databound)
 template <typename T>
 Matrix<T> Matrix<T>::operator+(const Matrix &mat)
 {
+    cout << "Sum of matrixs is: " << endl;
     Matrix<T> ans(this->row, this->column, this->channels);
+
     if (this == NULL)
     {
         throw "The matrixs are not valid! ";
@@ -104,7 +103,7 @@ Matrix<T> Matrix<T>::operator+(const Matrix &mat)
     }
     else if (this->row != mat.row || this->row != ans.row || mat.column != ans.column)
     {
-        throw "The matrixs ans the output doesn't match! \n";
+        throw "The matrixs and the output doesn't match! \n";
         //        return NULL;
     }
     else
@@ -123,7 +122,10 @@ Matrix<T> Matrix<T>::operator+(const Matrix &mat)
 template <typename T>
 Matrix<T> Matrix<T>::operator+(const T addx)
 {
+    cout << "Sum of matrix and the number is: " << endl;
+
     Matrix<T> ans(this->row, this->column, this->channels);
+
     if (this == NULL)
     {
         throw "The matrixs are not valid! ";
@@ -131,12 +133,10 @@ Matrix<T> Matrix<T>::operator+(const T addx)
     else if (this->data == NULL || ans.data == NULL)
     {
         throw "The matrix data is not valid!";
-        //        return NULL;
     }
     else if (this->row != ans.row || this->column != ans.column)
     {
-        throw "The matrixs ans the output doesn't match! \n";
-        //        return NULL;
+        throw "The matrixs and the output doesn't match! \n";
     }
     else
     {
@@ -154,6 +154,8 @@ Matrix<T> Matrix<T>::operator+(const T addx)
 template <typename T>
 Matrix<T> Matrix<T>::operator-(const Matrix &mat)
 {
+    cout << "The difference of matrixs is: " << endl;
+
     Matrix<T> ans(this->row, this->column, this->channels);
     if (this == NULL)
     {
@@ -166,7 +168,7 @@ Matrix<T> Matrix<T>::operator-(const Matrix &mat)
     }
     else if (this->row != mat.row || this->row != ans.row || mat.column != ans.column)
     {
-        throw "The matrixs ans the output doesn't match! \n";
+        throw "The matrixs and the output doesn't match! \n";
         //        return NULL;
     }
     else
@@ -185,6 +187,8 @@ template <typename T>
 Matrix<T> Matrix<T>::operator*(const Matrix &mat)
 { // 矩阵相乘,一维
     // #ifdef WITH_AVX2
+    cout << "Product of matrixs is: " << endl;
+
     __m256 a, b;
 
     Matrix<T> ans(this->row, mat.column, this->channels);
@@ -243,7 +247,7 @@ Matrix<T> Matrix<T>::operator*(const Matrix &mat)
                     {
                         temp += this->data[i * this->row + k] * mat.data[k * this->column + j];
                     }
-                    ans.data[i * this->row + j] = temp;
+                    ans.data[i * this->column + j] = temp;
                     temp = 0;
                 }
             }
@@ -353,27 +357,25 @@ Matrix<T> Matrix<T>::operator=(const Matrix &mat) // soft copy
         else if (this->data == NULL)
         {
             throw "The matrix data is not valid!";
-            //        return NULL;
-        }
-        else if (this->row != mat.row || this->column != mat.column)
-        {
-            throw "The matrixs and the output doesn't match! \n";
-            //        return NULL;
         }
         else
         {
-            delete[] this->data;
+            if (*(this->ref_count) == 0 && this->data != nullptr)
+            {
+                delete[] this->data;
+                delete this->ref_count;
+            }
             this->column = mat.column;
             this->row = mat.row;
             this->channels = mat.channels;
             if (mat.data)
             {
                 this->data = mat.data;
+                *this->ref_count = *mat.ref_count;
                 this->addrefCount();
             }
         }
     }
-    // cout << data << endl;
     return *this;
 }
 
@@ -392,7 +394,7 @@ bool Matrix<T>::operator==(const Matrix &mat)
     }
     else if (this->row != mat.row || this->column != mat.column)
     {
-        throw "The matrixs ans the output doesn't match! \n";
+        throw "The two matrix doesn't match! \n";
         return false;
     }
     else
@@ -419,6 +421,7 @@ size_t getFileRow(string fileName)
     ReadFile.open(fileName, ios::in);
     if (ReadFile.fail())
     {
+        throw "Not valid file!";
         return 0;
     }
     else // 文件存在
@@ -440,6 +443,7 @@ size_t getFileSize(string fileName)
     ReadFile.open(fileName, ios::in);
     if (ReadFile.fail())
     {
+        throw "Not valid file!";
         return 0;
     }
     else // 文件存在
@@ -451,70 +455,6 @@ size_t getFileSize(string fileName)
         return n;
     }
 }
-
-// template <typename T>
-// Matrix<T> Matrix<T>::ROI(int a, int b, string fileName) // 传入文件修改矩阵指定区域
-// {
-//     if (this == NULL)
-//     {
-//         throw "The matrixs are not valid! ";
-//     }
-
-//     else if (a > this->row * this->column || b > this->column * this->row)
-//     {
-//         throw "The ROI is not valid! 1";
-//     }
-//     else
-//     {                                        // 6 9  4
-//         size_t a_row = a / this->column + 1; // 2
-//         size_t a_col = a % this->column + 1; // 3
-//         size_t b_row = b / this->column + 1; // 3
-//         size_t b_col = b % this->column + 1; // 2
-//         size_t min_row = min(b_row, a_row);
-//         size_t max_row = max(b_row, a_row);
-//         size_t min_col = min(b_col, a_col);
-//         size_t max_col = max(b_col, a_col);
-//         size_t row = max_row - min_row + 1;
-//         size_t col = max_col - min_col + 1;
-
-//         size_t file_row = getFileRow(fileName);
-//         size_t file_col = getFileSize(fileName) / file_row;
-//         if (col * row != getFileSize(fileName))
-//         {
-//             cout << col << endl
-//                  << row << endl
-//                  << getFileSize(fileName) << endl;
-//             throw "The ROI is not valid! 2";
-//         }
-//         else
-//         {
-//             cout << a_row << a_col << b_row << b_col << col << endl
-//                  << row << endl
-//                  << getFileSize(fileName) << endl;
-
-//             std::ifstream fin(fileName);
-//             Matrix roi_data = Matrix(file_row, file_col, 1); // 将文件中的数据存入Matrix类的对象中
-//             fin >> roi_data;
-//             fin.close();
-//             T *roi_ptr = this->data; // 指向存储数据的首地址
-//             int copydata_index = 0;
-//             for (int i = (min_row - 1) * this->column + min_col - 1;
-//                  i <= (max_row - 1) * this->column + max_col - 1; i++)
-//             {
-//                 int ptr_row = i / this->column + 1;
-//                 int ptr_col = i % this->column + 1;
-//                 if (ptr_row >= min_row && ptr_row <= max_row && ptr_col >= min_col &&
-//                     ptr_col <= max_col)
-
-//                 {
-//                     *(roi_ptr + i) = roi_data.data[copydata_index];
-//                     copydata_index++;
-//                 }
-//             }
-//         }
-//         return *this;
-//     }
-// }
 
 template <typename T>
 Matrix<T> Matrix<T>::ROI(size_t startR, size_t startC, size_t endR, size_t endC, string fileName) // 传入文件修改矩阵指定区域
@@ -537,23 +477,20 @@ Matrix<T> Matrix<T>::ROI(size_t startR, size_t startC, size_t endR, size_t endC,
         size_t file_col = getFileSize(fileName) / file_row;
         if (col * row != getFileSize(fileName))
         {
-            cout << col << endl
-                 << row << endl
-                 << getFileSize(fileName) << endl;
             throw "The ROI is not valid! 2";
         }
         else
         {
-            cout << col << endl
-                 << row << endl
-                 << getFileSize(fileName) << endl;
+            // cout << col << endl
+            //      << row << endl
+            //      << getFileSize(fileName) << endl;
 
             std::ifstream fin(fileName);
             Matrix roi_data = Matrix(file_row, file_col, 1); // 将文件中的数据存入Matrix类的对象中
             fin >> roi_data;
             fin.close();
             T *roi_ptr = this->data; // 指向存储数据的首地址
-            int copydata_index = 0;
+            int copy_index = 0;
             for (int i = (startR - 1) * this->column + startC - 1;
                  i <= (endR - 1) * this->column + endC - 1; i++)
             {
@@ -561,10 +498,11 @@ Matrix<T> Matrix<T>::ROI(size_t startR, size_t startC, size_t endR, size_t endC,
                 int ptr_col = i % this->column + 1;
                 if (ptr_row >= startR && ptr_row <= endR && ptr_col >= startC && ptr_col <= endC)
                 {
-                    *(roi_ptr + i) = roi_data.data[copydata_index];
-                    copydata_index++;
+                    *(roi_ptr + i) = roi_data.data[copy_index];
+                    copy_index++;
                 }
             }
+            this->addrefCount();
         }
         return *this;
     }
@@ -575,25 +513,27 @@ int main()
 {
     try
     {
-        Matrix<float> m1(7, 7, 1);
-        Matrix<float> m2(7, 7, 1);
-        Matrix<float> m3(7, 7, 1);
-        // std::shared_ptr<float> p1;
-        m1.createRamMatrix(&m1, 5);
+        Matrix<float> m1(6, 7, 1);
+        Matrix<float> m2(3, 3, 1);
+        Matrix<float> m3(3, 3, 1);
+        Matrix<float> m4(2, 3, 1);
+
+        m1.createRamMatrix(5);
         sleep(1);
-        m2.createRamMatrix(&m2, 5);
+        m2.createRamMatrix(5);
         cout << m1;
-        cout << m2;
-        ifstream fin("mat1.txt");
-        // m1.ROI(10, 13, "mat1.txt");
+        // cout << m2;
+        // ifstream fin("mat1.txt");
         m1.ROI(2, 3, 3, 5, "mat1.txt");
         cout << m1;
-        // m3 = m1 + m2;
+        // m3 = m1 + m2; // wrong case
         // cout << m3;
+        // m3 = m1 * m2;
+        // cout << m3;
+        // // cout << m3;
+        // // cout << (m1 == m3) << endl;
         // m3 = m1;
-        // cout << m3;
         // cout << (m1 == m3) << endl;
-        // cout << (m1 == m2) << endl;
     }
     catch (const char *msg)
     {
