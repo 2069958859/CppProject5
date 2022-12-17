@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include "source.h"
 #include <stdlib.h>
 #include <iomanip>
@@ -410,22 +411,185 @@ bool Matrix<T>::operator==(const Matrix &mat)
     }
 }
 
+size_t getFileRow(string fileName)
+{
+    ifstream ReadFile;
+    size_t n = 0;
+    string tmp;
+    ReadFile.open(fileName, ios::in);
+    if (ReadFile.fail())
+    {
+        return 0;
+    }
+    else // 文件存在
+    {
+        while (getline(ReadFile, tmp, '\n'))
+        {
+            n++;
+        }
+        ReadFile.close();
+        return n;
+    }
+}
+size_t getFileSize(string fileName)
+{
+    ifstream ReadFile;
+    size_t n = 0;
+    string tmp;
+    string data1;
+    ReadFile.open(fileName, ios::in);
+    if (ReadFile.fail())
+    {
+        return 0;
+    }
+    else // 文件存在
+    {
+        while (ReadFile >> data1)
+        {
+            n++;
+        }
+        return n;
+    }
+}
+
+// template <typename T>
+// Matrix<T> Matrix<T>::ROI(int a, int b, string fileName) // 传入文件修改矩阵指定区域
+// {
+//     if (this == NULL)
+//     {
+//         throw "The matrixs are not valid! ";
+//     }
+
+//     else if (a > this->row * this->column || b > this->column * this->row)
+//     {
+//         throw "The ROI is not valid! 1";
+//     }
+//     else
+//     {                                        // 6 9  4
+//         size_t a_row = a / this->column + 1; // 2
+//         size_t a_col = a % this->column + 1; // 3
+//         size_t b_row = b / this->column + 1; // 3
+//         size_t b_col = b % this->column + 1; // 2
+//         size_t min_row = min(b_row, a_row);
+//         size_t max_row = max(b_row, a_row);
+//         size_t min_col = min(b_col, a_col);
+//         size_t max_col = max(b_col, a_col);
+//         size_t row = max_row - min_row + 1;
+//         size_t col = max_col - min_col + 1;
+
+//         size_t file_row = getFileRow(fileName);
+//         size_t file_col = getFileSize(fileName) / file_row;
+//         if (col * row != getFileSize(fileName))
+//         {
+//             cout << col << endl
+//                  << row << endl
+//                  << getFileSize(fileName) << endl;
+//             throw "The ROI is not valid! 2";
+//         }
+//         else
+//         {
+//             cout << a_row << a_col << b_row << b_col << col << endl
+//                  << row << endl
+//                  << getFileSize(fileName) << endl;
+
+//             std::ifstream fin(fileName);
+//             Matrix roi_data = Matrix(file_row, file_col, 1); // 将文件中的数据存入Matrix类的对象中
+//             fin >> roi_data;
+//             fin.close();
+//             T *roi_ptr = this->data; // 指向存储数据的首地址
+//             int copydata_index = 0;
+//             for (int i = (min_row - 1) * this->column + min_col - 1;
+//                  i <= (max_row - 1) * this->column + max_col - 1; i++)
+//             {
+//                 int ptr_row = i / this->column + 1;
+//                 int ptr_col = i % this->column + 1;
+//                 if (ptr_row >= min_row && ptr_row <= max_row && ptr_col >= min_col &&
+//                     ptr_col <= max_col)
+
+//                 {
+//                     *(roi_ptr + i) = roi_data.data[copydata_index];
+//                     copydata_index++;
+//                 }
+//             }
+//         }
+//         return *this;
+//     }
+// }
+
+template <typename T>
+Matrix<T> Matrix<T>::ROI(size_t startR, size_t startC, size_t endR, size_t endC, string fileName) // 传入文件修改矩阵指定区域
+{
+    if (this == NULL)
+    {
+        throw "The matrixs are not valid! ";
+    }
+
+    else if (startR > endR || startC > endC || endR > this->row || endC > this->column)
+    {
+        throw "The ROI is not valid! 1";
+    }
+    else
+    {
+        size_t row = endR - startR + 1;
+        size_t col = endC - startC + 1;
+
+        size_t file_row = getFileRow(fileName);
+        size_t file_col = getFileSize(fileName) / file_row;
+        if (col * row != getFileSize(fileName))
+        {
+            cout << col << endl
+                 << row << endl
+                 << getFileSize(fileName) << endl;
+            throw "The ROI is not valid! 2";
+        }
+        else
+        {
+            cout << col << endl
+                 << row << endl
+                 << getFileSize(fileName) << endl;
+
+            std::ifstream fin(fileName);
+            Matrix roi_data = Matrix(file_row, file_col, 1); // 将文件中的数据存入Matrix类的对象中
+            fin >> roi_data;
+            fin.close();
+            T *roi_ptr = this->data; // 指向存储数据的首地址
+            int copydata_index = 0;
+            for (int i = (startR - 1) * this->column + startC - 1;
+                 i <= (endR - 1) * this->column + endC - 1; i++)
+            {
+                int ptr_row = i / this->column + 1;
+                int ptr_col = i % this->column + 1;
+                if (ptr_row >= startR && ptr_row <= endR && ptr_col >= startC && ptr_col <= endC)
+                {
+                    *(roi_ptr + i) = roi_data.data[copydata_index];
+                    copydata_index++;
+                }
+            }
+        }
+        return *this;
+    }
+}
+
 template class Matrix<float>;
 int main()
 {
     try
     {
-        Matrix<float> m1(2, 3, 1);
-        Matrix<float> m2(2, 3, 1);
-        Matrix<float> m3(2, 3, 1);
+        Matrix<float> m1(7, 7, 1);
+        Matrix<float> m2(7, 7, 1);
+        Matrix<float> m3(7, 7, 1);
         // std::shared_ptr<float> p1;
         m1.createRamMatrix(&m1, 5);
         sleep(1);
         m2.createRamMatrix(&m2, 5);
         cout << m1;
         cout << m2;
-        m3 = m1 + m2;
-        cout << m3;
+        ifstream fin("mat1.txt");
+        // m1.ROI(10, 13, "mat1.txt");
+        m1.ROI(2, 3, 3, 5, "mat1.txt");
+        cout << m1;
+        // m3 = m1 + m2;
+        // cout << m3;
         // m3 = m1;
         // cout << m3;
         // cout << (m1 == m3) << endl;

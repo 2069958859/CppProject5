@@ -73,7 +73,7 @@ public:
     }
     int *getrefCount() const // const很重要
     {
-        return this->ref_count;
+        return ref_count;
     }
 
     friend std::ostream &operator<<(std::ostream &os, const Matrix &mat)
@@ -103,7 +103,23 @@ public:
         }
         return os;
     }
-    Matrix operator+(const Matrix &mat);
+
+    friend std::ifstream &operator>>(std::ifstream &ifs, const Matrix &mat)
+    {
+        for (size_t i = 0; i < mat.row; i++)
+        {
+            for (size_t j = 0; j < mat.column; j++)
+            {
+                ifs >> mat.data[i * mat.column + j];
+            }
+        }
+        return ifs;
+    }
+    // Matrix ROI(int a, int b, string fileName);
+    Matrix ROI(size_t startR, size_t endR, size_t startC, size_t endC, string fileName); // 传入文件修改矩阵指定区域
+
+    Matrix
+    operator+(const Matrix &mat);
     Matrix operator-(const Matrix &mat);
     Matrix operator=(const Matrix &mat);
     bool operator==(const Matrix &mat);
