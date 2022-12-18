@@ -106,6 +106,7 @@ The followings are the operators I have overloaded.
 Free the data if no other matrix assign to it.
 
 ```C++
+template <typename T>
 Matrix<T> Matrix<T>::operator=(const Matrix &mat) // soft copy
 {
     if (this != &mat)
@@ -120,6 +121,7 @@ Matrix<T> Matrix<T>::operator=(const Matrix &mat) // soft copy
         }
         else
         {
+            *this->ref_count -= 1;
             if (*(this->ref_count) == 0 && this->data != nullptr)
             {
                 delete[] this->data;
@@ -132,23 +134,12 @@ Matrix<T> Matrix<T>::operator=(const Matrix &mat) // soft copy
             {
                 this->data = mat.data;
                 *this->ref_count = *mat.ref_count;
-                this->addrefCount();
+                *this->ref_count += 1;
             }
         }
     }
     return *this;
 }
-```
-
-```C++
-    void addrefCount()
-    {
-        *this->ref_count += 1;
-    }
-    void minusrefCount()
-    {
-        *this->ref_count -= 1;
-    }
 ```
 
 #### 2.3.2 Some other detail code about operator overload
@@ -172,22 +163,16 @@ bool Matrix<T>::operator==(const Matrix &mat)
     }
     else if (this->row != mat.row || this->column != mat.column)
     {
-        throw "The matrixs ans the output doesn't match! \n";
+        throw "The two matrix doesn't match! \n";
         return false;
     }
     else
     {
-        for (size_t i = 0; i < this->row; ++i)
+        if (memcmp(this->data, mat.data, this->row * this->column * this->channels * sizeof(T)) == 0)
         {
-            for (size_t j = 0; j < this->column; ++j)
-            {
-                if (this->data[i * this->column + j] != mat.data[i * this->column + j])
-                {
-                    return false;
-                }
-            }
+            return true;
         }
-        return true;
+        return false;
     }
 }
 ```
@@ -224,6 +209,7 @@ Matrix<T> Matrix<T>::operator+(const Matrix &mat)
     return ans;
 }
 ```
+
 ```C++
 template <typename T>
 Matrix<T> Matrix<T>::operator+(const T addx)
@@ -257,6 +243,199 @@ Matrix<T> Matrix<T>::operator+(const T addx)
     return ans;
 }
 ```
+
+overload of **<<**
+
+```C++
+    friend std::ostream &operator<<(std::ostream &os, const Matrix &mat)
+    {
+        if (mat.data == NULL)
+        {
+            cerr << "The matrix data is not valid! \n"
+                 << endl;
+        }
+        else
+        {
+            std::string str = "";
+            for (size_t i = 0; i < mat.row; i++)
+            {
+                for (size_t j = 0; j < mat.column; j++)
+                {
+                    cout << std::left << setw(10);
+                    cout.fixed;
+                    cout << mat.data[i * mat.column + j] << "  ";
+                }
+                cout << endl;
+            }
+            cout << endl;
+        }
+        return os;
+    }
+```
+
+**operator\***(以 float 类型为例)
+
+```C++
+template <typename T>
+Matrix<T> Matrix<T>::operator*(const Matrix &mat)
+{ // 矩阵相乘,一维
+    // #ifdef WITH_AVX2
+    cout << "Product of matrixs is: " << endl;
+
+    __m256 a, b;
+
+    Matrix<T> ans(this->row, mat.column, this->channels);
+    if (this == NULL)
+    {
+        throw "The matrixs are not valid! ";
+    }
+    else if (this->data == NULL || mat.data == NULL || ans.data == NULL)
+    {
+        throw "The matrix data is not valid!";
+    }
+    else if (this->column != mat.row || this->row != ans.row || mat.column != ans.column)
+    {
+        throw "The matrixs and the output doesn't match! \n";
+    }
+
+    else
+    {
+        T *p2 = (T *)malloc(sizeof(T) * mat.column * this->column * this->channels);
+        if (p2 == NULL)
+        { // 申请空间失败
+            throw "p2 is failed to allocated";
+        }
+
+        size_t o = 0;
+
+        for (size_t j = 0; j < mat.column; ++j)
+        { // reduce loops
+            for (size_t k = 0; k < mat.column / 8 * 8; k += 8)
+            {
+                p2[o++] = mat.data[k * mat.column + j];
+                p2[o++] = mat.data[(1 + k) * mat.column + j];
+                p2[o++] = mat.data[(2 + k) * mat.column + j];
+                p2[o++] = mat.data[(3 + k) * mat.column + j];
+                p2[o++] = mat.data[(4 + k) * mat.column + j];
+                p2[o++] = mat.data[(5 + k) * mat.column + j];
+                p2[o++] = mat.data[(6 + k) * mat.column + j];
+                p2[o++] = mat.data[(7 + k) * mat.column + j];
+            }
+
+            for (size_t k = mat.column / 8 * 8; k < mat.column; k++)
+            {
+                p2[o++] = mat.data[k * mat.column + j];
+            }
+        }
+
+        if (this->row < 8)
+        {
+            T temp = 0;
+            for (size_t i = 0; i < this->row; ++i)
+            {
+                for (size_t j = 0; j < mat.column; ++j)
+                {
+                    for (size_t k = 0; k < this->column; ++k)
+                    {
+                        temp += this->data[i * this->row + k] * mat.data[k * this->column + j];
+                    }
+                    ans.data[i * this->column + j] = temp;
+                    temp = 0;
+                }
+            }
+        }
+
+        else
+        {
+
+#pragma omp parallel for
+            for (size_t q = 0; q < 8; q++)
+            {
+                __m256 c = _mm256_setzero_ps();
+
+                size_t m1row_8 = this->row / 8;
+                T *this_8 = this->data + (this->row / 8 * q) * this->column;
+                T *ans_8 = ans.data + (this->row / 8 * q) * mat.column;
+                for (size_t i = 0; i < m1row_8; ++i)
+                {
+                    for (size_t j = 0; j < mat.column; ++j)
+                    {
+                        T temp = 0;
+                        T sum[8] = {0};
+                        c = _mm256_setzero_ps();
+                        ans_8[i * this->row + j] = 0;
+
+                        size_t i1 = i * this->column;
+                        size_t j1 = j * mat.row;
+
+                        for (size_t k = 0; k < this->column / 8 * 8; k += 8)
+                        {
+                            a = _mm256_loadu_ps(this_8 + i1 + k);
+                            b = _mm256_loadu_ps(p2 + j1 + k);
+                            c = _mm256_add_ps(c, _mm256_mul_ps(a, b));
+                        }
+                        _mm256_storeu_ps(sum, c);
+
+                        ans_8[i * mat.column + j] =
+                            sum[0] + sum[1] + sum[2] + sum[3] + sum[4] + sum[5] + sum[6] + sum[7];
+
+                        for (size_t k = this->column / 8 * 8; k < this->column; k += 1)
+                        {
+                            // Tail case
+                            temp += this_8[i1 + k] * p2[j1 + k];
+                        }
+                        ans_8[i * mat.column + j] += temp;
+                        temp = 0;
+                    }
+                    // printf("%d\n",i);
+                }
+            }
+
+            T *this_else = this->data + (this->row / 8 * 8) * this->column;
+            T *ans_else = ans.data + (this->row / 8 * 8) * mat.column;
+
+            for (size_t i = 0; i < this->row - this->row / 8 * 8; ++i)
+            { // tail
+                for (size_t j = 0; j < mat.column; ++j)
+                {
+                    T temp = 0;
+                    T sum[8] = {0};
+                    __m256 c = _mm256_setzero_ps();
+                    ans_else[i * this->row + j] = 0;
+
+                    size_t i1 = i * this->column;
+                    size_t j1 = j * mat.row;
+
+                    for (size_t k = 0; k < this->column / 8 * 8; k += 8)
+                    {
+                        a = _mm256_loadu_ps(this_else + i1 + k);
+                        b = _mm256_loadu_ps(p2 + j1 + k);
+                        c = _mm256_add_ps(c, _mm256_mul_ps(a, b));
+                    }
+                    _mm256_storeu_ps(sum, c);
+
+                    ans_else[i * mat.column + j] =
+                        sum[0] + sum[1] + sum[2] + sum[3] + sum[4] + sum[5] + sum[6] + sum[7];
+
+                    for (size_t k = this->column / 8 * 8; k < this->column; k += 1)
+                    {
+                        // Tail case
+                        temp += this_else[i1 + k] * p2[j1 + k];
+                    }
+                    ans_else[i * mat.column + j] += temp;
+                    temp = 0;
+                }
+            }
+            free(p2); // 释放空间
+        }
+    }
+    return ans;
+    // #else
+    //     printf("AVX2 is not supported");
+    // #endif
+}
+```
+
 ### 2.4 Implement of ROI using soft copy
 
 > In my point of view, ROI is used for processing the pictures by change a small region of the picture, the implement is as follow:
@@ -304,19 +483,22 @@ Matrix<T> Matrix<T>::ROI(size_t startR, size_t startC, size_t endR, size_t endC,
                     copy_index++;
                 }
             }
-            this->addrefCount();
+            *this->ref_count += 1;
         }
         return *this;
     }
 }
 ```
+
 ### 2.5 Other functions used:
+
 ```C++
 size_t getFileRow(string fileName);//用于ROI的文件中矩阵大小的计算
 size_t getFileSize(string fileName);
 template <typename T>
 void Matrix<T>::createRamMatrix(const size_t databound)//生成随机矩阵
 ```
+
 ## 3.Result & Verify
 
 ### 3.1 Results of operators

@@ -57,34 +57,11 @@ void Matrix<T>::createRamMatrix(const size_t databound)
         for (size_t j = 0; j < (unsigned long long)this->row * this->column; j++)
         {
             T ram = (T)rand() / RAND_MAX * databound;
-            this->data[j] = ram;
+            matrix->data[j] = ram;        
         }
-        this->addrefCount();
+        *this->ref_count += 1;
     }
 }
-
-// template <typename T>
-// void Matrix<T>::showMatrix(const Matrix *matrix)
-// { // 打印矩阵
-//     if (matrix == NULL || matrix->data == NULL)
-//     {
-//         cerr << "The matrix is null!" << endl;
-//     }
-//     else
-//     {
-//         for (size_t i = 0; i < matrix->row; i++)
-//         {
-//             for (size_t j = 0; j < matrix->column; j++)
-//             {
-//                 cout << std::left << setw(10);
-//                 cout.fixed;
-//                 cout << matrix->data[i * matrix->row + j] << "  ";
-//             }
-//             cout << endl;
-//         }
-//     }
-//     cout << endl;
-// }
 
 template <typename T>
 Matrix<T> Matrix<T>::operator+(const Matrix &mat)
@@ -199,7 +176,6 @@ Matrix<T> Matrix<T>::operator*(const Matrix &mat)
     else if (this->data == NULL || mat.data == NULL || ans.data == NULL)
     {
         throw "The matrix data is not valid!";
-        //        return NULL;
     }
     else if (this->column != mat.row || this->row != ans.row || mat.column != ans.column)
     {
@@ -238,7 +214,7 @@ Matrix<T> Matrix<T>::operator*(const Matrix &mat)
 
         if (this->row < 8)
         {
-            float temp = 0;
+            T temp = 0;
             for (size_t i = 0; i < this->row; ++i)
             {
                 for (size_t j = 0; j < mat.column; ++j)
@@ -335,7 +311,6 @@ Matrix<T> Matrix<T>::operator*(const Matrix &mat)
                 }
                 // printf("%d\n",i);
             }
-
             free(p2); // 释放空间
         }
     }
@@ -360,6 +335,7 @@ Matrix<T> Matrix<T>::operator=(const Matrix &mat) // soft copy
         }
         else
         {
+            *this->ref_count -= 1;
             if (*(this->ref_count) == 0 && this->data != nullptr)
             {
                 delete[] this->data;
@@ -372,7 +348,7 @@ Matrix<T> Matrix<T>::operator=(const Matrix &mat) // soft copy
             {
                 this->data = mat.data;
                 *this->ref_count = *mat.ref_count;
-                this->addrefCount();
+                *this->ref_count += 1;
             }
         }
     }
@@ -399,17 +375,11 @@ bool Matrix<T>::operator==(const Matrix &mat)
     }
     else
     {
-        for (size_t i = 0; i < this->row; ++i)
+        if (memcmp(this->data, mat.data, this->row * this->column * this->channels * sizeof(T)) == 0)
         {
-            for (size_t j = 0; j < this->column; ++j)
-            {
-                if (this->data[i * this->column + j] != mat.data[i * this->column + j])
-                {
-                    return false;
-                }
-            }
+            return true;
         }
-        return true;
+        return false;
     }
 }
 
@@ -502,38 +472,38 @@ Matrix<T> Matrix<T>::ROI(size_t startR, size_t startC, size_t endR, size_t endC,
                     copy_index++;
                 }
             }
-            this->addrefCount();
+            *this->ref_count += 1;
         }
         return *this;
     }
 }
 
-template class Matrix<float>;
+// template class Matrix<float>;
 int main()
 {
     try
     {
-        Matrix<float> m1(6, 7, 1);
-        Matrix<float> m2(3, 3, 1);
-        Matrix<float> m3(3, 3, 1);
+        Matrix<unsigned char> m1(3, 3, 1);
+        Matrix<unsigned char> m2(3, 3, 1);
+        Matrix<unsigned char> m3(3, 3, 1);
         Matrix<float> m4(2, 3, 1);
 
         m1.createRamMatrix(5);
         sleep(1);
         m2.createRamMatrix(5);
         cout << m1;
-        // cout << m2;
+        cout << m2;
         // ifstream fin("mat1.txt");
-        m1.ROI(2, 3, 3, 5, "mat1.txt");
-        cout << m1;
-        // m3 = m1 + m2; // wrong case
-        // cout << m3;
+        // m1.ROI(2, 3, 3, 5, "mat1.txt");
+        // cout << m1;
+        m3 = m1 + m2; // wrong case
+        cout << m3;
         // m3 = m1 * m2;
         // cout << m3;
         // // cout << m3;
         // // cout << (m1 == m3) << endl;
-        // m3 = m1;
-        // cout << (m1 == m3) << endl;
+        m3 = m1;
+        cout << (m1 == m3) << endl;
     }
     catch (const char *msg)
     {

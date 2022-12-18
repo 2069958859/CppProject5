@@ -66,14 +66,6 @@ public:
     ~Matrix()
     {
     }
-    void addrefCount()
-    {
-        *this->ref_count += 1;
-    }
-    void minusrefCount()
-    {
-        *this->ref_count -= 1;
-    }
     int *getrefCount() const // const很重要
     {
         return ref_count;
